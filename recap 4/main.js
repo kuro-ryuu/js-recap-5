@@ -11,3 +11,12 @@ async function fetchData(url, options) {
 
   return response.json();
 }
+
+const options = {method: 'GET'};
+
+try {
+  const data = await fetchData(requestURL, options);
+  console.log('API response:', data);
+} catch (error) {
+  console.error('Failed to fetch data:', error.message);
+}
