@@ -4,7 +4,11 @@ import {fetchData} from './utils.js';
 
 const restaurantTableBody = document.querySelector('tbody');
 const restaurantDialog = document.querySelector('dialog');
+const companyFilters = document.querySelectorAll(
+  'input[name="company-filter"]'
+);
 let currentMenuRequest = 0;
+let allRestaurants = [];
 
 const updateRestaurantModal = (restaurant, menu) => {
   restaurantDialog.innerHTML = restaurantModal(restaurant, menu);
@@ -37,24 +41,40 @@ const loadDailyMenu = async restaurant => {
 };
 
 const renderRestaurants = restaurants => {
-  const sortedRestaurants = [...restaurants].sort(
-    ({name: firstName}, {name: secondName}) =>
+  const selectedCompanies = [...companyFilters]
+    .filter(({checked}) => checked)
+    .map(({value}) => value.toLocaleLowerCase('fi'));
+  const rows = restaurants
+    .filter(({company}) =>
+      selectedCompanies.includes(String(company ?? '').toLocaleLowerCase('fi'))
+    )
+    .sort(({name: firstName}, {name: secondName}) =>
       firstName.localeCompare(secondName, 'fi')
-  );
+    )
+    .map(restaurant => {
+      const row = restaurantRow(restaurant);
+      const nameCell = row.querySelector('.restaurant-name');
 
-  sortedRestaurants.forEach(restaurant => {
-    const row = restaurantRow(restaurant);
-    const nameCell = row.querySelector('.restaurant-name');
-
-    nameCell.addEventListener('click', () => {
-      document.querySelectorAll('.restaurant-name').forEach(element => {
-        element.classList.remove('highlight');
+      nameCell.addEventListener('click', () => {
+        document.querySelectorAll('.restaurant-name').forEach(element => {
+          element.classList.remove('highlight');
+        });
+        nameCell.classList.add('highlight');
+        loadDailyMenu(restaurant);
       });
-      nameCell.classList.add('highlight');
-      loadDailyMenu(restaurant);
+      return row;
     });
-    restaurantTableBody.append(row);
-  });
+
+  restaurantTableBody.replaceChildren(...rows);
+  if (rows.length === 0) {
+    const emptyRow = document.createElement('tr');
+    const emptyCell = document.createElement('td');
+
+    emptyCell.colSpan = 2;
+    emptyCell.textContent = 'No restaurants match the selected companies';
+    emptyRow.append(emptyCell);
+    restaurantTableBody.append(emptyRow);
+  }
 };
 
 const showRestaurantLoadError = () => {
@@ -74,11 +94,16 @@ const loadRestaurants = async () => {
       throw new Error('Restaurant API response was not a list');
     }
 
-    renderRestaurants(restaurants);
+    allRestaurants = restaurants;
+    renderRestaurants(allRestaurants);
   } catch (error) {
     console.error('Failed to load restaurants:', error);
     showRestaurantLoadError();
   }
 };
+
+companyFilters.forEach(filter => {
+  filter.addEventListener('change', () => renderRestaurants(allRestaurants));
+});
 
 loadRestaurants();
